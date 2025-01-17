@@ -8,9 +8,9 @@ python token_benchmark_ray.py \
 --stddev-input-tokens 150 \
 --mean-output-tokens 150 \
 --stddev-output-tokens 10 \
---max-num-completed-requests 100 \
+--max-num-completed-requests 20 \
 --timeout 600 \
---num-concurrent-requests 10 \
+--num-concurrent-requests 1 \
 --results-dir "result_outputs" \
 --llm-api gimlet \
 --additional-sampling-params '{}'
