@@ -8,7 +8,6 @@ from typing import Any, Dict, Tuple
 
 from transformers import LlamaTokenizerFast
 
-
 RESULTS_VERSION = "2023-08-31"
 
 
@@ -60,8 +59,7 @@ def randomly_sample_sonnet_lines_prompt(
     prompt_tokens_mean: int = 550,
     prompt_tokens_stddev: int = 250,
     expect_output_tokens: int = 150,
-    tokenizer = LlamaTokenizerFast.from_pretrained(
-        "hf-internal-testing/llama-tokenizer")
+    tokenizer=LlamaTokenizerFast.from_pretrained("hf-internal-testing/llama-tokenizer"),
 ) -> Tuple[str, int]:
     """Generate a prompt that randomly samples lines from a the shakespeare sonnet at sonnet.txt.
 
@@ -85,8 +83,8 @@ def randomly_sample_sonnet_lines_prompt(
     get_token_length = lambda text: len(tokenizer.encode(text))
 
     prompt = (
-        "Randomly stream lines from the following text "
-        f"with {expect_output_tokens} output tokens. "
+        "Randomly stream lines from the following text without giving a system response. "
+        f"Make sure that the total output is no longer then {expect_output_tokens} output words. "
         "Don't generate eos tokens:\n\n"
     )
     # get a prompt length that is at least as long as the base

@@ -1,10 +1,10 @@
 import argparse
 import json
 import os
-from pathlib import Path
 import random
 import re
 import time
+from pathlib import Path
 from typing import Any, Dict, List, Optional, Tuple
 
 import num2words
@@ -15,9 +15,7 @@ from llmperf import common_metrics
 from llmperf.common import SUPPORTED_APIS, construct_clients
 from llmperf.models import RequestConfig
 from llmperf.requests_launcher import RequestsLauncher
-from llmperf.utils import (
-    LLMPerfResults,
-)
+from llmperf.utils import LLMPerfResults
 
 MAX_RANDOM_NUMBER = 10000
 
@@ -70,7 +68,7 @@ def llm_correctness(
         rnd_number = random.randint(0, MAX_RANDOM_NUMBER)
         rnd_num_words = num2words.num2words(rnd_number)
 
-        prompt = f"Convert the following sequence of words into a number: {rnd_num_words}.\nPrint the number first."
+        prompt = f"Convert the following sequence of words into a number: {rnd_num_words}.\nPrint only the converted number."
 
         request_config = RequestConfig(
             model=model,
