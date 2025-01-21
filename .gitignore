@@ -241,6 +241,7 @@ dist/
 # results
 output/
 *.json
+!sharegpt_prompts.json
 result_outputs/
 
 __pycache__

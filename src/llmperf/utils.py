@@ -132,6 +132,41 @@ def sample_random_positive_int(mean: int, stddev: int) -> int:
     return ret
 
 
+def randomly_sample_shared_gpt_prompt(
+    tokenizer=LlamaTokenizerFast.from_pretrained("hf-internal-testing/llama-tokenizer"),
+) -> Tuple[str, int]:
+    # """Generate a prompt that randomly samples lines from a the shakespeare sonnet at sonnet.txt.
+
+    # Args:
+    #     prompt_length_mean: The mean length of the prompt to generate.
+    #     prompt_len_stddev: The standard deviation of the length of the prompt to generate.
+    #     expect_output_tokens: The number of tokens to expect in the output. This is used to
+    #     determine the length of the prompt. The prompt will be generated such that the output
+    #     will be approximately this many tokens.
+
+    # Note:
+    #     tokens will be counted from the sonnet using the Llama tokenizer. Using one tokenizer
+    #     ensures a fairer comparison across different LLMs. For example, if gpt 3.5 tokenizes
+    #     a prompt in less tokens than Llama2, then this will be reflected in the results since
+    #     they will be fed identical prompts.
+
+    # Returns:
+    #     A tuple of the prompt and the length of the prompt.
+    # """
+
+    get_token_length = lambda text: len(tokenizer.encode(text))
+
+    # sonnet_path = pathlib.Path(__file__).parent.resolve() / "sonnet.txt"
+    human_prompts_path = (
+        pathlib.Path(__file__).parent.resolve() / "sharegpt_prompts.json"
+    )
+    with open(human_prompts_path, "r") as f:
+        human_prompts = json.load(f)
+    prompt = random.choice(human_prompts)
+
+    return (prompt, get_token_length(prompt))
+
+
 def flatten_dict(d, parent_key="", sep="_"):
     items = []
     for k, v in d.items():

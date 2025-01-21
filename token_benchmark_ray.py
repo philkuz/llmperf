@@ -20,6 +20,7 @@ from llmperf.models import RequestConfig
 from llmperf.requests_launcher import RequestsLauncher
 from llmperf.utils import (
     LLMPerfResults,
+    randomly_sample_shared_gpt_prompt,
     randomly_sample_sonnet_lines_prompt,
     sample_random_positive_int,
 )
@@ -79,14 +80,17 @@ def get_token_throughput_latencies(
         )
         num_output_tokens_list.append(num_output_tokens)
 
-        prompts.append(
-            randomly_sample_sonnet_lines_prompt(
-                prompt_tokens_mean=mean_input_tokens,
-                prompt_tokens_stddev=stddev_input_tokens,
-                expect_output_tokens=num_output_tokens,
-                tokenizer=tokenizer,
+        if False:
+            prompts.append(
+                randomly_sample_sonnet_lines_prompt(
+                    prompt_tokens_mean=mean_input_tokens,
+                    prompt_tokens_stddev=stddev_input_tokens,
+                    expect_output_tokens=num_output_tokens,
+                    tokenizer=tokenizer,
+                )
             )
-        )
+        else:
+            prompts.append(randomly_sample_shared_gpt_prompt(tokenizer=tokenizer))
     start_time = time.monotonic()
     pbar = tqdm(total=max_num_completed_requests)
 
@@ -115,7 +119,7 @@ def get_token_throughput_latencies(
             outs = req_launcher.get_next_ready()
             all_metrics = []
             for out in outs:
-                request_metrics, gen_text, _ = out
+                request_metrics, gen_text, conf = out
                 num_output_tokens = get_token_length(gen_text)
                 with completed_requests_lock:
                     if num_completed_requests < max_num_completed_requests:
