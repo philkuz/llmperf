@@ -7,7 +7,7 @@ import threading
 import time
 from collections.abc import Iterable
 from pathlib import Path
-from typing import Any, Dict, List, Optional, Tuple
+from typing import Any, Dict, List, Literal, Optional, Tuple
 
 import pandas as pd
 import ray
@@ -37,6 +37,7 @@ def get_token_throughput_latencies(
     max_num_completed_requests: int = 500,
     test_timeout_s=90,
     llm_api="openai",
+    dataset: Literal["shakespeare", "sharegpt"] = "sharegpt",
 ) -> Tuple[Dict[str, Any], List[Dict[str, Any]]]:
     """Get the token throughput and latencies for the given model.
 
@@ -80,7 +81,7 @@ def get_token_throughput_latencies(
         )
         num_output_tokens_list.append(num_output_tokens)
 
-        if False:
+        if dataset == "shakespeare":
             prompts.append(
                 randomly_sample_sonnet_lines_prompt(
                     prompt_tokens_mean=mean_input_tokens,
@@ -316,6 +317,7 @@ def run_token_benchmark(
     additional_sampling_params: str,
     results_dir: str,
     user_metadata: Dict[str, Any],
+    dataset: Literal["shakespeare", "sharegpt"],
 ):
     """
     Args:
@@ -351,6 +353,7 @@ def run_token_benchmark(
         stddev_output_tokens=stddev_output_tokens,
         num_concurrent_requests=num_concurrent_requests,
         additional_sampling_params=json.loads(additional_sampling_params),
+        dataset=dataset,
     )
 
     if results_dir:
@@ -487,6 +490,14 @@ args.add_argument(
     ),
 )
 
+args.add_argument(
+    "--dataset",
+    type=str,
+    default="sharegpt",
+    choices=["shakespeare", "sharegpt"],
+    help=("Dataset with prompts to use. Options are "),
+)
+
 if __name__ == "__main__":
     env_vars = dict(os.environ)
     ray.init(runtime_env={"env_vars": env_vars})
@@ -512,4 +523,5 @@ if __name__ == "__main__":
         additional_sampling_params=args.additional_sampling_params,
         results_dir=args.results_dir,
         user_metadata=user_metadata,
+        dataset=args.dataset,
     )
