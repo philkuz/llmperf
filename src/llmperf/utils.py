@@ -132,6 +132,41 @@ def sample_random_positive_int(mean: int, stddev: int) -> int:
     return ret
 
 
+def randomly_sample_shared_gpt_prompt(
+    tokenizer=LlamaTokenizerFast.from_pretrained("hf-internal-testing/llama-tokenizer"),
+    idx: int | None = None,
+) -> Tuple[str, int]:
+    # """ Sample a prompt from the shared gpt library.
+
+    # Args:
+    #     idx: if None will sample a random prompt, if idx will sample a prompt at that index
+
+    # Note:
+    #     tokens will be counted from the sonnet using the Llama tokenizer. Using one tokenizer
+    #     ensures a fairer comparison across different LLMs. For example, if gpt 3.5 tokenizes
+    #     a prompt in less tokens than Llama2, then this will be reflected in the results since
+    #     they will be fed identical prompts.
+
+    # Returns:
+    #     A tuple of the prompt and the length of the prompt.
+    # """
+
+    get_token_length = lambda text: len(tokenizer.encode(text))
+
+    human_prompts_path = (
+        pathlib.Path(__file__).parent.resolve() / "sharegpt_prompts.json"
+    )
+    with open(human_prompts_path, "r") as f:
+        prompts = json.load(f)
+
+    if idx is None:
+        prompt = random.choice(prompts)
+    else:
+        prompt = prompts[idx]
+
+    return (prompt, get_token_length(prompt))
+
+
 def flatten_dict(d, parent_key="", sep="_"):
     items = []
     for k, v in d.items():

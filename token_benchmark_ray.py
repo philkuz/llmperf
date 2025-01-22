@@ -7,7 +7,7 @@ import threading
 import time
 from collections.abc import Iterable
 from pathlib import Path
-from typing import Any, Dict, List, Optional, Tuple
+from typing import Any, Dict, List, Literal, Optional, Tuple
 
 import pandas as pd
 import ray
@@ -20,6 +20,7 @@ from llmperf.models import RequestConfig
 from llmperf.requests_launcher import RequestsLauncher
 from llmperf.utils import (
     LLMPerfResults,
+    randomly_sample_shared_gpt_prompt,
     randomly_sample_sonnet_lines_prompt,
     sample_random_positive_int,
 )
@@ -36,6 +37,7 @@ def get_token_throughput_latencies(
     max_num_completed_requests: int = 500,
     test_timeout_s=90,
     llm_api="openai",
+    dataset: Literal["shakespeare", "sharegpt"] = "sharegpt",
 ) -> Tuple[Dict[str, Any], List[Dict[str, Any]]]:
     """Get the token throughput and latencies for the given model.
 
@@ -79,14 +81,19 @@ def get_token_throughput_latencies(
         )
         num_output_tokens_list.append(num_output_tokens)
 
-        prompts.append(
-            randomly_sample_sonnet_lines_prompt(
-                prompt_tokens_mean=mean_input_tokens,
-                prompt_tokens_stddev=stddev_input_tokens,
-                expect_output_tokens=num_output_tokens,
-                tokenizer=tokenizer,
+        if dataset == "shakespeare":
+            prompts.append(
+                randomly_sample_sonnet_lines_prompt(
+                    prompt_tokens_mean=mean_input_tokens,
+                    prompt_tokens_stddev=stddev_input_tokens,
+                    expect_output_tokens=num_output_tokens,
+                    tokenizer=tokenizer,
+                )
             )
-        )
+        else:
+            prompts.append(
+                randomly_sample_shared_gpt_prompt(tokenizer=tokenizer, idx=i)
+            )
     start_time = time.monotonic()
     pbar = tqdm(total=max_num_completed_requests)
 
@@ -115,7 +122,7 @@ def get_token_throughput_latencies(
             outs = req_launcher.get_next_ready()
             all_metrics = []
             for out in outs:
-                request_metrics, gen_text, _ = out
+                request_metrics, gen_text, conf = out
                 num_output_tokens = get_token_length(gen_text)
                 with completed_requests_lock:
                     if num_completed_requests < max_num_completed_requests:
@@ -135,6 +142,7 @@ def get_token_throughput_latencies(
                         request_metrics[common_metrics.REQ_OUTPUT_THROUGHPUT] = (
                             num_output_tokens / request_metrics[common_metrics.E2E_LAT]
                         )
+                        request_metrics["prompt"] = conf.prompt[0][0:100]
                         all_metrics.append(request_metrics)
                         completed_requests.extend(all_metrics)
                         pbar.update(len(all_metrics))
@@ -309,6 +317,7 @@ def run_token_benchmark(
     additional_sampling_params: str,
     results_dir: str,
     user_metadata: Dict[str, Any],
+    dataset: Literal["shakespeare", "sharegpt"],
 ):
     """
     Args:
@@ -344,6 +353,7 @@ def run_token_benchmark(
         stddev_output_tokens=stddev_output_tokens,
         num_concurrent_requests=num_concurrent_requests,
         additional_sampling_params=json.loads(additional_sampling_params),
+        dataset=dataset,
     )
 
     if results_dir:
@@ -480,6 +490,14 @@ args.add_argument(
     ),
 )
 
+args.add_argument(
+    "--dataset",
+    type=str,
+    default="sharegpt",
+    choices=["shakespeare", "sharegpt"],
+    help=("Dataset with prompts to use. Options are "),
+)
+
 if __name__ == "__main__":
     env_vars = dict(os.environ)
     ray.init(runtime_env={"env_vars": env_vars})
@@ -505,4 +523,5 @@ if __name__ == "__main__":
         additional_sampling_params=args.additional_sampling_params,
         results_dir=args.results_dir,
         user_metadata=user_metadata,
+        dataset=args.dataset,
     )
