@@ -134,6 +134,7 @@ def sample_random_positive_int(mean: int, stddev: int) -> int:
 
 def randomly_sample_shared_gpt_prompt(
     tokenizer=LlamaTokenizerFast.from_pretrained("hf-internal-testing/llama-tokenizer"),
+    idx=0,
 ) -> Tuple[str, int]:
     # """Generate a prompt that randomly samples lines from a the shakespeare sonnet at sonnet.txt.
 
@@ -156,15 +157,16 @@ def randomly_sample_shared_gpt_prompt(
 
     get_token_length = lambda text: len(tokenizer.encode(text))
 
-    # sonnet_path = pathlib.Path(__file__).parent.resolve() / "sonnet.txt"
     human_prompts_path = (
         pathlib.Path(__file__).parent.resolve() / "sharegpt_prompts.json"
     )
     with open(human_prompts_path, "r") as f:
-        human_prompts = json.load(f)
-    prompt = random.choice(human_prompts)
+        prompts = json.load(f)
 
-    return (prompt, get_token_length(prompt))
+    ret = (prompts[idx], get_token_length(prompts[idx]))
+    idx += 1
+
+    return ret
 
 
 def flatten_dict(d, parent_key="", sep="_"):

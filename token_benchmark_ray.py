@@ -90,7 +90,9 @@ def get_token_throughput_latencies(
                 )
             )
         else:
-            prompts.append(randomly_sample_shared_gpt_prompt(tokenizer=tokenizer))
+            prompts.append(
+                randomly_sample_shared_gpt_prompt(tokenizer=tokenizer, idx=i)
+            )
     start_time = time.monotonic()
     pbar = tqdm(total=max_num_completed_requests)
 
@@ -139,6 +141,7 @@ def get_token_throughput_latencies(
                         request_metrics[common_metrics.REQ_OUTPUT_THROUGHPUT] = (
                             num_output_tokens / request_metrics[common_metrics.E2E_LAT]
                         )
+                        request_metrics["prompt"] = conf.prompt[0][0:100]
                         all_metrics.append(request_metrics)
                         completed_requests.extend(all_metrics)
                         pbar.update(len(all_metrics))
