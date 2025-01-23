@@ -62,7 +62,7 @@ def get_token_throughput_latencies(
     random.seed(11111)
 
     tokenizer = LlamaTokenizerFast.from_pretrained(
-        "hf-internal-testing/llama-tokenizer"
+        "meta-llama/Meta-Llama-3-8B-Instruct"
     )
     get_token_length = lambda text: len(tokenizer.encode(text))
 
@@ -75,13 +75,14 @@ def get_token_throughput_latencies(
     # make up prompts outside of send loop for faster benchmarking loop
     num_output_tokens_list = []
     prompts = []
-    for i in range(max_num_completed_requests):
-        num_output_tokens = sample_random_positive_int(
-            mean_output_tokens, stddev_output_tokens
-        )
-        num_output_tokens_list.append(num_output_tokens)
 
-        if dataset == "shakespeare":
+    if dataset == "shakespeare":
+        for i in range(max_num_completed_requests):
+            num_output_tokens = sample_random_positive_int(
+                mean_output_tokens, stddev_output_tokens
+            )
+            num_output_tokens_list.append(num_output_tokens)
+
             prompts.append(
                 randomly_sample_sonnet_lines_prompt(
                     prompt_tokens_mean=mean_input_tokens,
@@ -90,10 +91,15 @@ def get_token_throughput_latencies(
                     tokenizer=tokenizer,
                 )
             )
-        else:
-            prompts.append(
-                randomly_sample_shared_gpt_prompt(tokenizer=tokenizer, idx=i)
+    else:
+        prompts.extend(
+            randomly_sample_shared_gpt_prompt(
+                number_of_prompts=max_num_completed_requests,
+                randomize=True,
+                tokenizer=tokenizer,
             )
+        )
+        num_output_tokens_list = list([p[1] for p in prompts])
     start_time = time.monotonic()
     pbar = tqdm(total=max_num_completed_requests)
 
@@ -122,34 +128,41 @@ def get_token_throughput_latencies(
             outs = req_launcher.get_next_ready()
             all_metrics = []
             for out in outs:
-                request_metrics, gen_text, conf = out
-                num_output_tokens = get_token_length(gen_text)
-                with completed_requests_lock:
-                    if num_completed_requests < max_num_completed_requests:
-                        if num_output_tokens:
-                            request_metrics[common_metrics.INTER_TOKEN_LAT] /= (
-                                request_metrics[common_metrics.NUM_OUTPUT_TOKENS]
+                try:
+                    request_metrics, gen_text, conf = out
+                    num_output_tokens = get_token_length(gen_text)
+                    with completed_requests_lock:
+                        if num_completed_requests < max_num_completed_requests:
+                            if num_output_tokens:
+                                request_metrics[common_metrics.INTER_TOKEN_LAT] /= (
+                                    request_metrics[common_metrics.NUM_OUTPUT_TOKENS]
+                                )
+                            else:
+                                request_metrics[common_metrics.INTER_TOKEN_LAT] = 0
+                            request_metrics[common_metrics.NUM_OUTPUT_TOKENS] = (
+                                num_output_tokens
                             )
-                        else:
-                            request_metrics[common_metrics.INTER_TOKEN_LAT] = 0
-                        request_metrics[common_metrics.NUM_OUTPUT_TOKENS] = (
-                            num_output_tokens
-                        )
-                        request_metrics[common_metrics.NUM_TOTAL_TOKENS] = (
-                            request_metrics[common_metrics.NUM_INPUT_TOKENS]
-                            + num_output_tokens
-                        )
-                        request_metrics[common_metrics.REQ_OUTPUT_THROUGHPUT] = (
-                            num_output_tokens / request_metrics[common_metrics.E2E_LAT]
-                        )
-                        request_metrics["prompt"] = conf.prompt[0][0:100]
-                        all_metrics.append(request_metrics)
-                        completed_requests.extend(all_metrics)
-                        pbar.update(len(all_metrics))
-                        num_completed_requests += len(all_metrics)
-                        request_index = (
-                            request_index + num_concurrent_requests
-                        ) % max_num_completed_requests
+                            request_metrics[common_metrics.NUM_TOTAL_TOKENS] = (
+                                request_metrics[common_metrics.NUM_INPUT_TOKENS]
+                                + num_output_tokens
+                            )
+                            request_metrics[common_metrics.REQ_OUTPUT_THROUGHPUT] = (
+                                num_output_tokens
+                                / request_metrics[common_metrics.E2E_LAT]
+                            )
+                            request_metrics["prompt"] = conf.prompt[0][0:100]
+                            all_metrics.append(request_metrics)
+                            completed_requests.extend(all_metrics)
+                            pbar.update(len(all_metrics))
+                            num_completed_requests += len(all_metrics)
+                            request_index = (
+                                request_index + num_concurrent_requests
+                            ) % max_num_completed_requests
+                except Exception:
+                    num_completed_requests += 1
+                    request_index = (
+                        request_index + num_concurrent_requests
+                    ) % max_num_completed_requests
 
     threads = []
     for i in range(num_concurrent_requests):
