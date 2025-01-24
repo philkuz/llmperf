@@ -9,6 +9,7 @@ from typing import Any, Dict, Tuple
 from transformers import LlamaTokenizerFast
 
 RESULTS_VERSION = "2023-08-31"
+MAX_PROMPT_SIZE = 8192
 
 
 class LLMPerfResults:
@@ -133,13 +134,14 @@ def sample_random_positive_int(mean: int, stddev: int) -> int:
 
 
 def randomly_sample_shared_gpt_prompt(
+    number_of_prompts: int,
+    randomize: bool = False,
     tokenizer=LlamaTokenizerFast.from_pretrained("hf-internal-testing/llama-tokenizer"),
-    idx: int | None = None,
-) -> Tuple[str, int]:
+) -> list[Tuple[str, int]]:
     # """ Sample a prompt from the shared gpt library.
 
     # Args:
-    #     idx: if None will sample a random prompt, if idx will sample a prompt at that index
+    #     number_of_prompts: number of prompts to generate
 
     # Note:
     #     tokens will be counted from the sonnet using the Llama tokenizer. Using one tokenizer
@@ -159,12 +161,19 @@ def randomly_sample_shared_gpt_prompt(
     with open(human_prompts_path, "r") as f:
         prompts = json.load(f)
 
-    if idx is None:
-        prompt = random.choice(prompts)
+    if randomize:
+        prompts = random.sample(prompts, number_of_prompts)
     else:
-        prompt = prompts[idx]
+        prompts = prompts[:number_of_prompts]
 
-    return (prompt, get_token_length(prompt))
+    def crop_text_to_context(text, max_tokens=8192):
+        tokens = tokenizer.encode(text)[:max_tokens]
+        return tokenizer.decode(tokens)
+
+    # crop prompt to 2/3 of max token length of llama 8B
+    prompts = [crop_text_to_context(p, max_tokens=4096) for p in prompts]
+
+    return list(zip(prompts, [get_token_length(p) for p in prompts]))
 
 
 def flatten_dict(d, parent_key="", sep="_"):
