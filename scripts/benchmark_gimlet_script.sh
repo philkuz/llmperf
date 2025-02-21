@@ -2,6 +2,21 @@ export GIMLET_CONTROLPLANE_BASE="https://localhost:60002"
 export GIMLET_API_KEY=""
 export GIMLET_DEVICE_ID=""
 
+# Script to warm-up the gimlet controlplane.
+curl -X GET \
+  "$GIMLET_CONTROLPLANE_BASE/v1/chat/completions?deviceID=$GIMLET_DEVICE_ID" \
+  -H "Authorization: Bearer $GIMLET_API_KEY" \
+  -H "Content-Type: application/json" \
+  --data '{
+    "model": "unknown",
+    "messages": [
+      {"role": "system", "content": ""},
+      {"role": "user", "content": "test-prompt"}
+    ],
+    "stream": true
+  }' \
+  -k >/dev/null 2>/dev/null
+
 python token_benchmark_ray.py \
 --model "unknown" \
 --mean-input-tokens 550 \
