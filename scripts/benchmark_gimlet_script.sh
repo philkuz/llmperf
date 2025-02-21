@@ -15,7 +15,7 @@ curl -X GET \
     ],
     "stream": true
   }' \
-  -k >/dev/null 2>/dev/null
+  -k >/dev/null
 
 python token_benchmark_ray.py \
 --model "unknown" \
